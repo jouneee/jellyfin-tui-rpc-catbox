@@ -3,6 +3,7 @@ use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc::Receiver;
+use std::process::Command;
 
 pub enum DiscordCommand {
     Playing {
@@ -20,7 +21,7 @@ pub fn t_discord(mut rx: Receiver<DiscordCommand>, client_id: u64) {
     let should_reconnect = Arc::new(AtomicBool::new(false));
     let reconnect_flag = should_reconnect.clone();
     let reconnect_flag2 = should_reconnect.clone();
-
+    
     reconnect_loop(&mut drpc, client_id);
 
     while let Some(cmd) = rx.blocking_recv() {
@@ -57,12 +58,15 @@ pub fn t_discord(mut rx: Receiver<DiscordCommand>, client_id: u64) {
                 // on Discord's dev portal to show up in the Rich Presence.
                 let mut assets = activity::Assets::new();
 
-                let url = format!(
-                    "{}/Items/{}/Images/Primary?fillHeight=480&fillWidth=480",
-                    server_url, track.parent_id
-                );
+                let output = Command::new("python3")
+                        .arg("images.py")
+                        .output()
+                        .expect("fail lol");
+                    
+                let url = String::from_utf8(output.stdout);
+                
                 assets = if show_art {
-                    assets.large_image(url.as_str())
+                    assets.large_image(url.trim())
                 } else {
                     assets.large_image("cover-placeholder")
                 }
